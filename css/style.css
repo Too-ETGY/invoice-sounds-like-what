@@ -186,9 +186,13 @@ textarea:focus {
   background: var(--bg);
 }
 
+.saved-item-select {
+  margin-bottom: 0.5rem;
+}
+
 .line-item-numbers {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
@@ -197,6 +201,20 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.toggle-row input {
+  width: auto;
 }
 
 .line-total .label-text {
@@ -353,6 +371,42 @@ textarea:focus {
 .invoice-notes p {
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.saved-items-panel {
+  margin-top: 1rem;
+}
+
+.saved-items-panel h3 {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.saved-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.saved-items-table th,
+.saved-items-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.saved-items-table th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.saved-items-table tr:last-child td {
+  border-bottom: none;
 }
 
 @media (width <= 900px) {

@@ -55,19 +55,25 @@
 
           <fieldset>
             <legend>Invoice Metadata</legend>
+            <label for="documentTitle">Document Title</label>
+            <input id="documentTitle" type="text" x-model="meta.documentTitle" @input="save()" placeholder="INVOICE">
             <label for="invoiceNumber">Invoice Number</label>
             <input id="invoiceNumber" type="text" x-model="meta.invoiceNumber" @input="save()" placeholder="INV-2026-001">
             <label for="issueDate">Issue Date</label>
             <input id="issueDate" type="date" x-model="meta.issueDate" @input="save()">
             <label for="dueDate">Due Date</label>
             <input id="dueDate" type="date" x-model="meta.dueDate" @input="save()">
+            <label class="toggle-row">
+              <input id="showDueDate" type="checkbox" x-model="meta.showDueDate" @change="save()">
+              <span>Show due date</span>
+            </label>
             <label for="currency">Currency</label>
             <select id="currency" x-model="meta.currency" @change="save()">
+              <option value="Rp">Rp IDR</option>
               <option value="$">$ USD</option>
               <option value="€">€ EUR</option>
               <option value="£">£ GBP</option>
               <option value="¥">¥ JPY</option>
-              <option value="Rp">Rp IDR</option>
             </select>
           </fieldset>
         </div>
@@ -77,16 +83,34 @@
             <legend>Line Items</legend>
             <template x-for="(item, index) in items" :key="index">
               <div class="line-item-row">
+                <div class="saved-item-select">
+                  <label :for="'saved-item-' + index">Saved item</label>
+                  <select :id="'saved-item-' + index" x-model="item.selectedItem" @change="applySavedItem(index)">
+                    <option value="">Choose saved item...</option>
+                    <template x-for="saved in itemCatalog" :key="saved.id">
+                      <option :value="saved.id" x-text="saved.name + ' (' + saved.unit + ' / Rp ' + formatMoney(saved.price) + ')'" ></option>
+                    </template>
+                  </select>
+                </div>
+
                 <label :for="'desc-' + index">Description</label>
-                <input :id="'desc-' + index" type="text" x-model="item.description" @input="save()" placeholder="Item description">
+                <input :id="'desc-' + index" type="text" x-model="item.description" @input="syncItemToCatalog(index)" placeholder="Item description">
                 <div class="line-item-numbers">
+                  <div>
+                    <label :for="'unit-' + index">Unit</label>
+                    <select :id="'unit-' + index" x-model="item.unit" @change="syncItemToCatalog(index)">
+                      <template x-for="unit in unitOptions" :key="unit">
+                        <option :value="unit" x-text="unit"></option>
+                      </template>
+                    </select>
+                  </div>
                   <div>
                     <label :for="'qty-' + index">Qty</label>
                     <input :id="'qty-' + index" type="number" x-model.number="item.qty" @input="save()" min="0" step="any" placeholder="0">
                   </div>
                   <div>
                     <label :for="'price-' + index">Unit Price</label>
-                    <input :id="'price-' + index" type="number" x-model.number="item.price" @input="save()" min="0" step="any" placeholder="0.00">
+                    <input :id="'price-' + index" type="number" x-model.number="item.price" @input="syncItemToCatalog(index)" min="0" step="any" placeholder="0.00">
                   </div>
                   <div class="line-total">
                     <span class="label-text">Total</span>
@@ -97,6 +121,35 @@
               </div>
             </template>
             <button type="button" class="btn btn-secondary" @click="addItem()">+ Add Item</button>
+
+            <div class="saved-items-panel">
+              <h3>Saved Items</h3>
+              <table class="saved-items-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Unit</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Use</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="saved in itemCatalog" :key="saved.id">
+                    <tr>
+                      <td x-text="saved.name"></td>
+                      <td x-text="saved.unit"></td>
+                      <td x-text="meta.currency + ' ' + formatMoney(saved.price)"></td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-secondary" @click="useSavedItem(saved)">Use</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="itemCatalog.length === 0">
+                    <td colspan="4">No saved items yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </fieldset>
         </div>
 
@@ -121,10 +174,10 @@
               <h2 x-text="sender.companyName || 'Your Company'">Your Company</h2>
             </div>
             <div class="invoice-meta-block">
-              <h3>INVOICE</h3>
+              <h3 x-text="meta.documentTitle || 'INVOICE'">INVOICE</h3>
               <p><strong>#</strong> <span x-text="meta.invoiceNumber || '—'"></span></p>
               <p><strong>Date:</strong> <span x-text="meta.issueDate || '—'"></span></p>
-              <p><strong>Due:</strong> <span x-text="meta.dueDate || '—'"></span></p>
+              <p x-show="meta.showDueDate"><strong>Due:</strong> <span x-text="meta.dueDate || '—'"></span></p>
             </div>
           </div>
 
