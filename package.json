@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "name": "invoice-generator",
+  "version": "1.0.0",
+  "description": "Client-side invoice generator with Alpine.js and htmx",
+  "devDependencies": {
+    "html-validate": "^8.0.0",
+    "stylelint": "^16.0.0",
+    "stylelint-config-standard": "^36.0.0"
+  }
+}

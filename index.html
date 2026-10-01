@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice Generator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+  <div id="app" x-data="invoiceApp()" x-init="init()">
+    <header class="top-bar no-print">
+      <h1>Invoice Generator</h1>
+      <div class="actions">
+        <button type="button" class="btn btn-danger" @click="resetForm()" hx-confirm="Reset all data? This cannot be undone.">Reset Form</button>
+        <button type="button" class="btn btn-primary" @click="window.print()">Print / Save PDF</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="form-panel no-print">
+        <div class="form-tabs" hx-on="htmx:afterSettle: window.scrollTo(0,0)">
+          <button type="button" class="tab" :class="{ active: activeTab === 'details' }" @click="activeTab = 'details'">Business &amp; Client</button>
+          <button type="button" class="tab" :class="{ active: activeTab === 'items' }" @click="activeTab = 'items'">Line Items</button>
+          <button type="button" class="tab" :class="{ active: activeTab === 'adjustments' }" @click="activeTab = 'adjustments'">Adjustments</button>
+        </div>
+
+        <div x-show="activeTab === 'details'" x-transition>
+          <fieldset>
+            <legend>Sender Details</legend>
+            <label for="companyName">Company Name</label>
+            <input id="companyName" type="text" x-model="sender.companyName" @input="save()" placeholder="Your Company">
+            <label for="address1">Address Line 1</label>
+            <input id="address1" type="text" x-model="sender.address1" @input="save()" placeholder="123 Main St">
+            <label for="address2">Address Line 2</label>
+            <input id="address2" type="text" x-model="sender.address2" @input="save()" placeholder="Suite 100, City, State">
+            <label for="email">Email</label>
+            <input id="email" type="email" x-model="sender.email" @input="save()" placeholder="you@company.com">
+            <label for="phone">Phone</label>
+            <input id="phone" type="tel" x-model="sender.phone" @input="save()" placeholder="+1 234 567 890">
+            <label for="logoUrl">Logo URL</label>
+            <input id="logoUrl" type="url" x-model="sender.logoUrl" @input="save()" placeholder="https://example.com/logo.png">
+          </fieldset>
+
+          <fieldset>
+            <legend>Client Details</legend>
+            <label for="clientName">Client Name</label>
+            <input id="clientName" type="text" x-model="client.name" @input="save()" placeholder="Client Company">
+            <label for="clientAddress">Billing Address</label>
+            <textarea id="clientAddress" x-model="client.address" @input="save()" rows="2" placeholder="Client billing address"></textarea>
+            <label for="clientEmail">Client Email</label>
+            <input id="clientEmail" type="email" x-model="client.email" @input="save()" placeholder="client@example.com">
+          </fieldset>
+
+          <fieldset>
+            <legend>Invoice Metadata</legend>
+            <label for="invoiceNumber">Invoice Number</label>
+            <input id="invoiceNumber" type="text" x-model="meta.invoiceNumber" @input="save()" placeholder="INV-2026-001">
+            <label for="issueDate">Issue Date</label>
+            <input id="issueDate" type="date" x-model="meta.issueDate" @input="save()">
+            <label for="dueDate">Due Date</label>
+            <input id="dueDate" type="date" x-model="meta.dueDate" @input="save()">
+            <label for="currency">Currency</label>
+            <select id="currency" x-model="meta.currency" @change="save()">
+              <option value="$">$ USD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+              <option value="¥">¥ JPY</option>
+              <option value="Rp">Rp IDR</option>
+            </select>
+          </fieldset>
+        </div>
+
+        <div x-show="activeTab === 'items'" x-transition>
+          <fieldset>
+            <legend>Line Items</legend>
+            <template x-for="(item, index) in items" :key="index">
+              <div class="line-item-row">
+                <label :for="'desc-' + index">Description</label>
+                <input :id="'desc-' + index" type="text" x-model="item.description" @input="save()" placeholder="Item description">
+                <div class="line-item-numbers">
+                  <div>
+                    <label :for="'qty-' + index">Qty</label>
+                    <input :id="'qty-' + index" type="number" x-model.number="item.qty" @input="save()" min="0" step="any" placeholder="0">
+                  </div>
+                  <div>
+                    <label :for="'price-' + index">Unit Price</label>
+                    <input :id="'price-' + index" type="number" x-model.number="item.price" @input="save()" min="0" step="any" placeholder="0.00">
+                  </div>
+                  <div class="line-total">
+                    <span class="label-text">Total</span>
+                    <span x-text="meta.currency + ' ' + formatMoney(item.qty * item.price)"></span>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-danger" @click="removeItem(index)" aria-label="Remove item">Remove</button>
+              </div>
+            </template>
+            <button type="button" class="btn btn-secondary" @click="addItem()">+ Add Item</button>
+          </fieldset>
+        </div>
+
+        <div x-show="activeTab === 'adjustments'" x-transition>
+          <fieldset>
+            <legend>Tax &amp; Discount</legend>
+            <label for="taxRate">Tax Rate (%)</label>
+            <input id="taxRate" type="number" x-model.number="adjustments.taxRate" @input="save()" min="0" step="any" placeholder="0">
+            <label for="discountRate">Discount Rate (%)</label>
+            <input id="discountRate" type="number" x-model.number="adjustments.discountRate" @input="save()" min="0" step="any" placeholder="0">
+            <label for="notes">Notes / Payment Instructions</label>
+            <textarea id="notes" x-model="adjustments.notes" @input="save()" rows="3" placeholder="Payment terms, bank details, etc."></textarea>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="preview-pane" id="invoice-preview">
+        <div class="invoice-sheet">
+          <div class="invoice-header">
+            <div class="invoice-brand">
+              <img x-show="sender.logoUrl" :src="sender.logoUrl" src="data:," alt="Company Logo" class="invoice-logo" @error="sender.logoUrl = ''">
+              <h2 x-text="sender.companyName || 'Your Company'">Your Company</h2>
+            </div>
+            <div class="invoice-meta-block">
+              <h3>INVOICE</h3>
+              <p><strong>#</strong> <span x-text="meta.invoiceNumber || '—'"></span></p>
+              <p><strong>Date:</strong> <span x-text="meta.issueDate || '—'"></span></p>
+              <p><strong>Due:</strong> <span x-text="meta.dueDate || '—'"></span></p>
+            </div>
+          </div>
+
+          <div class="invoice-parties">
+            <div class="party">
+              <h4>From</h4>
+              <p x-text="sender.companyName"></p>
+              <p x-text="sender.address1"></p>
+              <p x-text="sender.address2"></p>
+              <p x-text="sender.email"></p>
+              <p x-text="sender.phone"></p>
+            </div>
+            <div class="party">
+              <h4>Billed To</h4>
+              <p x-text="client.name"></p>
+              <p x-text="client.address" style="white-space:pre-line"></p>
+              <p x-text="client.email"></p>
+            </div>
+          </div>
+
+          <table class="invoice-table">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Description</th>
+                <th scope="col" class="num">Qty</th>
+                <th scope="col" class="num">Price</th>
+                <th scope="col" class="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(item, i) in items" :key="i">
+                <tr>
+                  <td x-text="i + 1"></td>
+                  <td x-text="item.description || '—'"></td>
+                  <td class="num" x-text="item.qty"></td>
+                  <td class="num" x-text="meta.currency + ' ' + formatMoney(item.price)"></td>
+                  <td class="num" x-text="meta.currency + ' ' + formatMoney(item.qty * item.price)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+
+          <div class="invoice-totals">
+            <div class="total-row">
+              <span>Subtotal</span>
+              <span x-text="meta.currency + ' ' + formatMoney(subtotal())"></span>
+            </div>
+            <div class="total-row" x-show="adjustments.taxRate > 0">
+              <span>Tax (<span x-text="adjustments.taxRate"></span>%)</span>
+              <span x-text="meta.currency + ' ' + formatMoney(taxAmount())"></span>
+            </div>
+            <div class="total-row" x-show="adjustments.discountRate > 0">
+              <span>Discount (<span x-text="adjustments.discountRate"></span>%)</span>
+              <span x-text="'−' + meta.currency + ' ' + formatMoney(discountAmount())"></span>
+            </div>
+            <div class="total-row grand-total">
+              <span>Grand Total</span>
+              <span x-text="meta.currency + ' ' + formatMoney(grandTotal())"></span>
+            </div>
+          </div>
+
+          <div class="invoice-notes" x-show="adjustments.notes">
+            <h4>Notes</h4>
+            <p x-text="adjustments.notes" style="white-space:pre-line"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>
