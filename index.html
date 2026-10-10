@@ -130,7 +130,7 @@
                     <th scope="col">Name</th>
                     <th scope="col">Unit</th>
                     <th scope="col">Price</th>
-                    <th scope="col">Use</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -141,6 +141,7 @@
                       <td x-text="meta.currency + ' ' + formatMoney(saved.price)"></td>
                       <td>
                         <button type="button" class="btn btn-sm btn-secondary" @click="useSavedItem(saved)">Use</button>
+                        <button type="button" class="btn btn-sm btn-danger" @click="removeSavedItem(saved.id)">Delete</button>
                       </td>
                     </tr>
                   </template>

@@ -3,6 +3,8 @@ function invoiceApp() {
     activeTab: "details",
     unitOptions: ["pcs", "bundle", "paket", "gr", "ltr", "box"],
     itemCatalog: [],
+    pendingCatalogItems: [],
+    itemCatalogSaveTimer: null,
 
     sender: {
       companyName: "",
@@ -72,33 +74,70 @@ function invoiceApp() {
           adjustments: this.adjustments,
         })
       );
-      localStorage.setItem("invoiceItemCatalog", JSON.stringify(this.itemCatalog));
+    },
+
+    saveItemCatalogDebounced() {
+      clearTimeout(this.itemCatalogSaveTimer);
+      this.itemCatalogSaveTimer = setTimeout(() => {
+        this.pendingCatalogItems.forEach((item) => {
+          if (!this.items.includes(item) || !item.description || !item.description.trim()) {
+            return;
+          }
+
+          var name = item.description.trim();
+          var normalizedName = name.toLowerCase();
+          var existingIndex = this.itemCatalog.findIndex(function (savedItem) {
+            return savedItem.name.toLowerCase() === normalizedName;
+          });
+          var itemRecord = {
+            id: existingIndex >= 0 ? this.itemCatalog[existingIndex].id : Date.now().toString(),
+            name: name,
+            unit: item.unit || "pcs",
+            price: Number(item.price) || 0,
+          };
+
+          if (existingIndex >= 0) {
+            this.itemCatalog[existingIndex] = itemRecord;
+          } else {
+            this.itemCatalog.push(itemRecord);
+          }
+
+          item.selectedItem = itemRecord.id;
+        });
+        this.pendingCatalogItems = [];
+        localStorage.setItem("invoiceItemCatalog", JSON.stringify(this.itemCatalog));
+      }, 1000);
     },
 
     syncItemToCatalog(index) {
       var item = this.items[index];
-      if (!item || !item.description || !item.description.trim()) {
+      if (!item) {
         return;
       }
 
-      var name = item.description.trim();
-      var normalizedName = name.toLowerCase();
-      var price = Number(item.price) || 0;
-      var unit = item.unit || "pcs";
-      var existingIndex = this.itemCatalog.findIndex(function (savedItem) {
-        return savedItem.name.toLowerCase() === normalizedName;
-      });
-
-      var itemRecord = { id: existingIndex >= 0 ? this.itemCatalog[existingIndex].id : Date.now().toString(), name: name, unit: unit, price: price };
-
-      if (existingIndex >= 0) {
-        this.itemCatalog[existingIndex] = itemRecord;
-      } else {
-        this.itemCatalog.push(itemRecord);
+      if (item.description && item.description.trim() && !this.pendingCatalogItems.includes(item)) {
+        this.pendingCatalogItems.push(item);
       }
 
-      item.selectedItem = itemRecord.id;
       this.save();
+      this.saveItemCatalogDebounced();
+    },
+
+    removeSavedItem(id) {
+      clearTimeout(this.itemCatalogSaveTimer);
+      this.pendingCatalogItems = this.pendingCatalogItems.filter(function (item) {
+        return item.selectedItem !== id;
+      });
+      this.itemCatalog = this.itemCatalog.filter(function (item) {
+        return item.id !== id;
+      });
+      this.items.forEach(function (item) {
+        if (item.selectedItem === id) {
+          item.selectedItem = "";
+        }
+      });
+      this.save();
+      this.saveItemCatalogDebounced();
     },
 
     applySavedItem(index) {
